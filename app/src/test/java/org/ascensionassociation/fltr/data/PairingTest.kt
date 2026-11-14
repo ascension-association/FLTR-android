@@ -11,7 +11,7 @@ class PairingTest {
 
     // Exactly what Go's url.Values.Encode produces: keys sorted, '/', ':', '+' and '=' escaped.
     private val fromFltr =
-        "gkfltr://pair?pin=sha256%2F47DEQpj8HBSa%2B%2FTImW%2B5JCeuQeRkm5NMpJWZG3hSuFU%3D" +
+        "fltr://pair?pin=sha256%2F47DEQpj8HBSa%2B%2FTImW%2B5JCeuQeRkm5NMpJWZG3hSuFU%3D" +
             "&token=$token&url=https%3A%2F%2F192.168.1.1%3A8443"
 
     @Test
@@ -25,7 +25,7 @@ class PairingTest {
 
     @Test
     fun toleratesWhitespaceTrailingSlashUppercaseAndUnescapedPlus() {
-        val raw = "  GKFLTR://pair?url=https://fltr.lan/&token=${token.uppercase()}&pin=sha256/$pinB64\n"
+        val raw = "  FLTR://pair?url=https://fltr.lan/&token=${token.uppercase()}&pin=sha256/$pinB64\n"
         val p = Pairing.parse(raw)
         assertEquals("https://fltr.lan", p.url)
         assertEquals(token, p.token)
@@ -36,8 +36,13 @@ class PairingTest {
     @Test
     fun rejectsOtherCodes() {
         assertThrows(InvalidPairingException::class.java) { Pairing.parse("https://example.com") }
-        assertThrows(InvalidPairingException::class.java) { Pairing.parse("gkfltr://pair") }
+        assertThrows(InvalidPairingException::class.java) { Pairing.parse("fltr://pair") }
         assertThrows(InvalidPairingException::class.java) { Pairing.parse("WIFI:S:home;T:WPA;P:secret;;") }
+    }
+
+    @Test
+    fun acceptsTheSchemeOfOlderBoxes() {
+        assertEquals(token, Pairing.parse(fromFltr.replaceFirst("fltr://", "gkfltr://")).token)
     }
 
     @Test

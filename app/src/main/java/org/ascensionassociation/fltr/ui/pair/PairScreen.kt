@@ -21,11 +21,13 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ContentPaste
 import androidx.compose.material.icons.rounded.QrCodeScanner
+import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -42,6 +44,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.journeyapps.barcodescanner.ScanContract
 import com.journeyapps.barcodescanner.ScanOptions
+import org.ascensionassociation.fltr.data.FoundBox
 import org.ascensionassociation.fltr.ui.PairState
 import org.ascensionassociation.fltr.ui.components.Astronaut
 import org.ascensionassociation.fltr.ui.components.StickerCard
@@ -51,6 +54,8 @@ import org.ascensionassociation.fltr.ui.theme.Brand
 fun PairScreen(
     state: PairState,
     onCode: (String) -> Unit,
+    onFind: () -> Unit,
+    onClaim: (FoundBox) -> Unit,
     onConfirm: (org.ascensionassociation.fltr.data.Pairing) -> Unit,
     onSaveAnyway: (org.ascensionassociation.fltr.data.Pairing) -> Unit,
     onDismiss: () -> Unit,
@@ -100,12 +105,22 @@ fun PairScreen(
 
             StickerCard(Modifier.fillMaxWidth().widthIn(max = 480.dp)) {
                 Step(1, "Join your home Wi-Fi", "FLTR can only be managed from inside your home.")
-                Step(2, "Show the pairing code", "Run “ramekin logs fltr” on your computer. The QR code is at the top.")
-                Step(3, "Scan it", "Keep the code private. Anyone who has it can change FLTR's settings.")
+                Step(2, "Find your box", "The first phone to pair with a new FLTR box does it with one tap.")
+                Step(
+                    3,
+                    "Pairing another phone?",
+                    "Scan the QR code from “ramekin logs fltr”. Keep it private: anyone who has it can change FLTR's settings.",
+                )
             }
 
             Spacer(Modifier.height(24.dp))
-            Button(onClick = scan, modifier = Modifier.fillMaxWidth().widthIn(max = 480.dp).height(56.dp)) {
+            Button(onClick = onFind, modifier = Modifier.fillMaxWidth().widthIn(max = 480.dp).height(56.dp)) {
+                Icon(Icons.Rounded.Search, contentDescription = null)
+                Spacer(Modifier.size(8.dp))
+                Text("Find my FLTR box")
+            }
+            Spacer(Modifier.height(12.dp))
+            OutlinedButton(onClick = scan, modifier = Modifier.fillMaxWidth().widthIn(max = 480.dp).height(56.dp)) {
                 Icon(Icons.Rounded.QrCodeScanner, contentDescription = null)
                 Spacer(Modifier.size(8.dp))
                 Text("Scan pairing code")
@@ -135,6 +150,30 @@ fun PairScreen(
                 }
             },
         )
+        PairState.Searching -> AlertDialog(
+            onDismissRequest = onDismiss,
+            confirmButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+            title = { Text("Looking for FLTR…") },
+            text = {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                    CircularProgressIndicator(Modifier.size(28.dp))
+                    Text("Checking your Wi-Fi network. This can take up to half a minute.")
+                }
+            },
+        )
+        is PairState.Found -> AlertDialog(
+            onDismissRequest = onDismiss,
+            title = { Text("Pair with this FLTR box?") },
+            text = {
+                val name = state.box.name.takeIf { it.isNotBlank() }?.let { "“$it” " }.orEmpty()
+                Text(
+                    "Found FLTR box $name at ${state.box.displayHost}. No phone has paired with it yet, " +
+                        "so this one will manage it. Only continue if this is your box."
+                )
+            },
+            confirmButton = { Button(onClick = { onClaim(state.box) }) { Text("Pair") } },
+            dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        )
         is PairState.Confirm -> AlertDialog(
             onDismissRequest = onDismiss,
             title = { Text("Pair with this FLTR box?") },
@@ -152,7 +191,9 @@ fun PairScreen(
             title = { Text("Couldn't pair") },
             text = { Text(state.message) },
             confirmButton = {
-                if (state.pairing != null) {
+                if (state.canSearchAgain) {
+                    Button(onClick = onFind) { Text("Search again") }
+                } else if (state.pairing != null) {
                     Button(onClick = { onConfirm(state.pairing) }) { Text("Try again") }
                 } else {
                     Button(onClick = { onDismiss(); scan() }) { Text("Scan again") }
@@ -161,6 +202,8 @@ fun PairScreen(
             dismissButton = {
                 if (state.canSaveAnyway && state.pairing != null) {
                     TextButton(onClick = { onSaveAnyway(state.pairing) }) { Text("Save anyway") }
+                } else if (state.canSearchAgain) {
+                    TextButton(onClick = { onDismiss(); scan() }) { Text("Scan code instead") }
                 } else {
                     TextButton(onClick = onDismiss) { Text("Close") }
                 }
@@ -194,7 +237,7 @@ private fun PasteDialog(onDismiss: () -> Unit, onSubmit: (String) -> Unit) {
             OutlinedTextField(
                 value = text,
                 onValueChange = { text = it },
-                placeholder = { Text("gkfltr://pair?…") },
+                placeholder = { Text("fltr://pair?…") },
                 textStyle = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
                 minLines = 3,
                 modifier = Modifier.fillMaxWidth(),

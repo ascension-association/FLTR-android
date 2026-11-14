@@ -8,10 +8,11 @@ import kotlinx.serialization.Serializable
 /**
  * What the FLTR pairing QR code carries (see FLTR-appliance docs/API.md):
  *
- *     gkfltr://pair?url=https%3A%2F%2F192.168.1.1%3A8443&token=<64 hex>&pin=sha256%2F<base64>
+ *     fltr://pair?url=https%3A%2F%2F192.168.1.1%3A8443&token=<64 hex>&pin=sha256%2F<base64>
  *
  * [url] is the API base URL without a trailing slash, [token] the bearer
  * token, and [pin] the SHA-256 of the certificate's SubjectPublicKeyInfo.
+ * Boxes running older FLTR releases print `gkfltr://`, which is accepted too.
  */
 @Serializable
 data class Pairing(val url: String, val token: String, val pin: String) {
@@ -26,6 +27,7 @@ data class Pairing(val url: String, val token: String, val pin: String) {
     companion object {
         private val TOKEN = Regex("[0-9a-fA-F]{64}")
         private const val PIN_PREFIX = "sha256/"
+        val SCHEMES = listOf("fltr", "gkfltr")
 
         /**
          * Parses a pairing link. Throws [InvalidPairingException] with a
@@ -35,7 +37,7 @@ data class Pairing(val url: String, val token: String, val pin: String) {
             val text = raw.trim()
             val q = text.indexOf('?')
             val head = if (q < 0) text else text.substring(0, q)
-            if (!head.equals("gkfltr://pair", ignoreCase = true) || q < 0) {
+            if (SCHEMES.none { head.equals("$it://pair", ignoreCase = true) } || q < 0) {
                 throw InvalidPairingException("That isn't an FLTR pairing code.")
             }
             val params = text.substring(q + 1)

@@ -141,7 +141,7 @@ class H(BaseHTTPRequestHandler):
     do_GET = do_PUT = do_POST = do_DELETE = handle_any
     def log_message(self, fmt, *a): sys.stderr.write("%s %s\n" % (self.command, self.path))
 
-print("Pairing link:\n  gkfltr://pair?" + urlencode({"url": f"https://{HOST}:8443", "token": TOKEN, "pin": PIN}), flush=True)
+print("Pairing link:\n  fltr://pair?" + urlencode({"url": f"https://{HOST}:8443", "token": TOKEN, "pin": PIN}), flush=True)
 srv = ThreadingHTTPServer(("0.0.0.0", 8443), H)
 ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER); ctx.load_cert_chain(CERT, KEY)
 srv.socket = ctx.wrap_socket(srv.socket, server_side=True)

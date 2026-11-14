@@ -36,6 +36,9 @@ sealed class ApiException(message: String, cause: Throwable? = null) : Exception
             (retryAfterSeconds?.let { " for $it seconds." } ?: ".")
     )
 
+    /** 409 from POST /pair: another app paired first, so only the QR code works now. */
+    class AlreadyPaired : ApiException("Your FLTR box is already paired with another phone.")
+
     class NotFound(message: String) : ApiException(message)
     class BadRequest(message: String) : ApiException(message)
     class Server(val code: Int, message: String) : ApiException(message)
@@ -140,6 +143,7 @@ class FltrApi(
                 401 -> ApiException.Unauthorized()
                 403 -> ApiException.NotHome()
                 404 -> ApiException.NotFound(message)
+                409 -> ApiException.AlreadyPaired()
                 429 -> ApiException.RateLimited(retryAfter?.trim()?.toLongOrNull())
                 else -> ApiException.Server(code, message)
             }

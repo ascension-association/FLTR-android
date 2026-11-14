@@ -8,6 +8,7 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import java.time.Instant
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -16,14 +17,17 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.ascensionassociation.fltr.FltrApplication
 import org.ascensionassociation.fltr.data.ApiException
 import org.ascensionassociation.fltr.data.BlockEntry
+import org.ascensionassociation.fltr.data.BoxFinder
 import org.ascensionassociation.fltr.data.CredentialStore
 import org.ascensionassociation.fltr.data.DeviceBody
 import org.ascensionassociation.fltr.data.FltrApi
 import org.ascensionassociation.fltr.data.FltrStatus
 import org.ascensionassociation.fltr.data.FltrUser
+import org.ascensionassociation.fltr.data.FoundBox
 import org.ascensionassociation.fltr.data.HomeNetwork
 import org.ascensionassociation.fltr.data.InvalidPairingException
 import org.ascensionassociation.fltr.data.Pairing
@@ -60,12 +64,23 @@ sealed interface PairState {
     /** A pairing link arrived from outside the app; ask before trusting it. */
     data class Confirm(val pairing: Pairing) : PairState
     data object Checking : PairState
-    data class Failed(val message: String, val pairing: Pairing?, val canSaveAnyway: Boolean) : PairState
+    /** Looking for a box on the Wi-Fi that no app has paired with yet. */
+    data object Searching : PairState
+    /** Found one; ask before taking it over. */
+    data class Found(val box: FoundBox) : PairState
+    /** [canSearchAgain]: the search found nothing usable, so offer it again. */
+    data class Failed(
+        val message: String,
+        val pairing: Pairing?,
+        val canSaveAnyway: Boolean,
+        val canSearchAgain: Boolean = false,
+    ) : PairState
 }
 
 class FltrViewModel(
     private val credentials: CredentialStore,
     private val homeNetwork: HomeNetwork,
+    private val finder: BoxFinder = BoxFinder(),
 ) : ViewModel() {
 
     private val _pairing = MutableStateFlow(credentials.load())
@@ -89,10 +104,58 @@ class FltrViewModel(
     /** From the scanner or the paste box: the person chose this, so check it straight away. */
     fun pair(raw: String) = parseThen(raw) { verifyAndSave(it) }
 
-    /** From a gkfltr:// link opened elsewhere: confirm first, a web page could have sent it. */
+    /** From a fltr:// link opened elsewhere: confirm first, a web page could have sent it. */
     fun pairFromLink(raw: String) = parseThen(raw) { _pairState.value = PairState.Confirm(it) }
 
     fun confirmPairing(pairing: Pairing) = verifyAndSave(pairing)
+
+    /** Looks on the Wi-Fi for a box no app has paired with yet, so no QR code is needed. */
+    fun findBox() {
+        pairJob?.cancel()
+        val subnet = homeNetwork.subnet()
+        if (!homeNetwork.onLocalNetwork() || subnet == null) {
+            _pairState.value = PairState.Failed(
+                "Connect this phone to your home Wi-Fi, then try again.", null, false, canSearchAgain = true,
+            )
+            return
+        }
+        _pairState.value = PairState.Searching
+        pairJob = viewModelScope.launch {
+            val boxes = finder.find(subnet)
+            val open = boxes.firstOrNull { it.open }
+            _pairState.value = when {
+                open != null -> PairState.Found(open)
+                boxes.isNotEmpty() -> PairState.Failed(ALREADY_PAIRED, null, false, canSearchAgain = true)
+                else -> PairState.Failed(
+                    "Couldn't find an FLTR box on this Wi-Fi. Check that it's on and connected to the same " +
+                        "network as this phone, or scan the QR code from its log.",
+                    null, false, canSearchAgain = true,
+                )
+            }
+        }
+    }
+
+    /** Pairs with a box [findBox] found, after the person confirmed it. */
+    fun claimBox(box: FoundBox) {
+        pairJob?.cancel()
+        _pairState.value = PairState.Checking
+        pairJob = viewModelScope.launch {
+            try {
+                // The box closes pairing as it hands over the token, so a
+                // Cancel mid-way must not drop it: finish and save regardless.
+                savePairing(withContext(NonCancellable) { finder.claim(box) })
+            } catch (e: ApiException) {
+                val message = when (e) {
+                    is ApiException.AlreadyPaired -> ALREADY_PAIRED
+                    is ApiException.WrongBox -> "The device at ${box.displayHost} changed while pairing. Search again."
+                    is ApiException.Unreachable, is ApiException.NotHome ->
+                        "Lost the connection to FLTR at ${box.displayHost}. Is this phone still on your home Wi-Fi?"
+                    else -> e.message ?: "Pairing failed."
+                }
+                _pairState.value = PairState.Failed(message, null, false, canSearchAgain = true)
+            }
+        }
+    }
 
     fun savePairingAnyway(pairing: Pairing) = savePairing(pairing)
 
@@ -352,6 +415,10 @@ class FltrViewModel(
 
     companion object {
         private const val POLL_MILLIS = 30_000L
+        private const val ALREADY_PAIRED =
+            "Your FLTR box is already paired with another phone, so this one needs the QR code from " +
+                "“ramekin logs fltr”. If you didn't pair another phone, someone else on your Wi-Fi may have: " +
+                "unpair every app with FLTR's -unpair setting, then search again."
 
         val Factory: ViewModelProvider.Factory = viewModelFactory {
             initializer {

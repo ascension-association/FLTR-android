@@ -7,6 +7,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import org.ascensionassociation.fltr.data.Pairing
 import org.ascensionassociation.fltr.ui.FltrApp
 import org.ascensionassociation.fltr.ui.FltrViewModel
 import org.ascensionassociation.fltr.ui.theme.FltrTheme
@@ -33,10 +34,10 @@ class MainActivity : ComponentActivity() {
         handlePairingLink(intent)
     }
 
-    /** gkfltr://pair?… from the system camera or another app. */
+    /** fltr://pair?… (or gkfltr:// from older boxes) from the system camera or another app. */
     private fun handlePairingLink(intent: Intent?) {
         val data = intent?.data ?: return
-        if (data.scheme.equals("gkfltr", ignoreCase = true)) {
+        if (Pairing.SCHEMES.any { data.scheme.equals(it, ignoreCase = true) }) {
             vm.pairFromLink(data.toString())
         }
     }

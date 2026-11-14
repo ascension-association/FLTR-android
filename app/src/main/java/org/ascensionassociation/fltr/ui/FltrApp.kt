@@ -81,6 +81,8 @@ fun FltrApp(vm: FltrViewModel) {
             PairScreen(
                 state = pairState,
                 onCode = vm::pair,
+                onFind = vm::findBox,
+                onClaim = vm::claimBox,
                 onConfirm = vm::confirmPairing,
                 onSaveAnyway = vm::savePairingAnyway,
                 onDismiss = vm::dismissPairing,

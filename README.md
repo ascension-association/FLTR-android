@@ -19,8 +19,8 @@ It uses every endpoint of the FLTR app API v1 (`docs/API.md` upstream).
 ### Pairing and security
 
 * Pair by scanning the QR code from `ramekin logs fltr` (in-app scanner, no Google Play Services
-  needed), by pasting the `gkfltr://pair?…` link, or by scanning with the phone's camera app (the
-  app handles `gkfltr://pair`). Links that come from outside the app ask for confirmation first.
+  needed), by pasting the `fltr://pair?…` link, or by scanning with the phone's camera app (the
+  app handles `fltr://pair`, and `gkfltr://pair` from older boxes). Links that come from outside the app ask for confirmation first.
 * The app checks the pairing by calling `/api/v1/status` before saving it.
 * TLS trusts **only** the paired certificate's public key (SHA-256 SPKI pin) and skips host name
   checks, as the API requires. There is no trust-all fallback.
@@ -79,7 +79,7 @@ pairing link. Pair the emulator with it:
 
 ```sh
 python3 tools/mock_fltr.py
-adb shell am start -a android.intent.action.VIEW -d "'gkfltr://pair?…'"   # the printed link
+adb shell am start -a android.intent.action.VIEW -d "'fltr://pair?…'"   # the printed link
 ```
 
 ## Project layout

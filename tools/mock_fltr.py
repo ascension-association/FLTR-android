@@ -60,12 +60,18 @@ for i, (u, ip, reason, h) in enumerate([
     blocks.append(e)
 blocks.sort(key=lambda e: e["time"])
 
+names = {}  # "mac aa:..." or "ip 1.2.3.4/32" -> name
+
+def device_name(ip, mac):
+    return (mac and names.get(f"mac {mac.lower()}")) or names.get(f"ip {ip}/32")
+
 def user_obj(name):
     u = users[name]
     rem = 0 if u["paused"] else max(0, u["allow"] + u["extra"] - u["used"])
     return dict(name=name, allowance_seconds=u["allow"], used_seconds=u["used"], extra_seconds=u["extra"],
                 remaining_seconds=rem, paused=u["paused"], managed=u["managed"],
-                devices=[dict(type=t, value=v, source=s) for t, v, s in u["devices"]])
+                devices=[dict(type=t, value=v, source=s, **({"name": names[f"{t} {v}"]} if f"{t} {v}" in names else {}))
+                         for t, v, s in u["devices"]])
 
 def owner(ip, mac):
     for n, u in users.items():
@@ -106,8 +112,18 @@ class H(BaseHTTPRequestHandler):
                 o["last_seen"] = iso(now() - timedelta(minutes=d["m"]))
                 who, rule = owner(d["ip"], d.get("mac"))
                 if who: o["user"], o["rule"] = who, rule
+                if device_name(d["ip"], d.get("mac")): o["name"] = device_name(d["ip"], d.get("mac"))
                 out.append(o)
             return self.reply(200, out)
+        if p == "/api/v1/names" and m == "GET":
+            return self.reply(200, [dict(type=k.split(" ", 1)[0], value=k.split(" ", 1)[1], name=v) for k, v in sorted(names.items())])
+        if p == "/api/v1/names" and m == "PUT":
+            if body.get("type") not in ("ip", "mac"): return self.reply(400, {"error": "invalid device type"})
+            t, v, nm = body["type"], norm(body["type"], body.get("value", "")), body.get("name", "").strip()
+            if len(nm) > 64: return self.reply(400, {"error": "name: at most 64 characters"})
+            if nm: names[f"{t} {v}"] = nm
+            else: names.pop(f"{t} {v}", None)
+            return self.reply(200, dict(type=t, value=v, name=nm))
         if p == "/api/v1/blocks" and m == "GET":
             q = parse_qs(u.query); lim = int(q.get("limit", ["100"])[0])
             r = [b for b in blocks if "user" not in q or b.get("user") == q["user"][0]]

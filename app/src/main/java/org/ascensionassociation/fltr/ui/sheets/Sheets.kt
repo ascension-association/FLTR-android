@@ -126,7 +126,7 @@ fun AllowanceSheet(
 }
 
 /** A device the person can pick: seen on the network, not yet theirs. */
-private fun SeenDevice.title() = clientLabel ?: host?.let { "Last visited $it" } ?: "Unknown device"
+private fun SeenDevice.title() = title ?: host?.let { "Last visited $it" } ?: "Unknown device"
 
 /** MAC is steadier than IP on most home networks, unless the phone randomizes it. */
 fun SeenDevice.toBody(preferMac: Boolean = true): DeviceBody =

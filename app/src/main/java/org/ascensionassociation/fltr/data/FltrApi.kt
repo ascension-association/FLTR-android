@@ -76,6 +76,10 @@ class FltrApi(
 
     suspend fun devices(): List<SeenDevice> = get(url("devices"), ListSerializer(SeenDevice.serializer()))
 
+    /** Names a device, or with an empty [name] removes its name. */
+    suspend fun setName(type: String, value: String, name: String): NameBody =
+        call("PUT", url("names"), json(NameBody.serializer(), NameBody(type, value, name)), NameBody.serializer())
+
     /** Recent blocks, oldest first, as the API returns them. */
     suspend fun blocks(user: String? = null, since: Instant? = null, limit: Int = 200): List<BlockEntry> {
         val u = url("blocks").newBuilder().apply {

@@ -207,6 +207,7 @@ private fun Home(vm: FltrViewModel, pairing: org.ascensionassociation.fltr.data.
                     onRefresh = refreshLists,
                     onPairAgain = vm::forgetBox,
                     onAssign = vm::assignDevice,
+                    onRename = vm::renameDevice,
                     onAddPerson = { device -> addPersonDevice = device; addPerson = true },
                 )
             }

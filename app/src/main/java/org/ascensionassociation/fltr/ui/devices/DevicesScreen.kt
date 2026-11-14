@@ -14,8 +14,12 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.rounded.Devices
+import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.PersonAdd
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -26,17 +30,22 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import org.ascensionassociation.fltr.data.DeviceBody
@@ -62,9 +71,11 @@ fun DevicesScreen(
     onRefresh: () -> Unit,
     onPairAgain: () -> Unit,
     onAssign: (DeviceBody, String) -> Unit,
+    onRename: (SeenDevice, String) -> Unit,
     onAddPerson: (DeviceBody?) -> Unit,
 ) {
     var assigning by remember { mutableStateOf<SeenDevice?>(null) }
+    var renaming by remember { mutableStateOf<SeenDevice?>(null) }
 
     PullToRefreshBox(
         isRefreshing = refreshing,
@@ -81,7 +92,7 @@ fun DevicesScreen(
             }
             item {
                 Text(
-                    "Devices FLTR has seen since it last started. Tap one to choose who it belongs to.",
+                    "Devices FLTR has seen since it last started. Tap one to name it or choose who it belongs to.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(bottom = 4.dp),
@@ -107,9 +118,62 @@ fun DevicesScreen(
             users = state.users,
             onAssign = { body, name -> assigning = null; onAssign(body, name) },
             onAddPerson = { body -> assigning = null; onAddPerson(body) },
+            onRename = { assigning = null; renaming = device },
             onDismiss = { assigning = null },
         )
     }
+
+    renaming?.let { device ->
+        RenameDialog(
+            device = device,
+            onSave = { name -> renaming = null; onRename(device, name) },
+            onDismiss = { renaming = null },
+        )
+    }
+}
+
+/** Longest name FLTR accepts. */
+private const val MAX_NAME = 64
+
+@Composable
+private fun RenameDialog(device: SeenDevice, onSave: (String) -> Unit, onDismiss: () -> Unit) {
+    var text by rememberSaveable { mutableStateOf(device.name.orEmpty()) }
+    val canSave = text.isNotBlank() && text.trim() != device.name
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(if (device.name == null) "Name this device" else "Rename device") },
+        text = {
+            Column {
+                OutlinedTextField(
+                    value = text,
+                    onValueChange = { if (it.length <= MAX_NAME) text = it.filterNot(Char::isISOControl) },
+                    label = { Text("Name") },
+                    placeholder = { Text("e.g. Alice's iPad") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, imeAction = ImeAction.Done),
+                    keyboardActions = KeyboardActions(onDone = { if (canSave) onSave(text) }),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Text(
+                    (if (device.mac != null) "Saved on FLTR for MAC ${device.mac}" else "Saved on FLTR for IP ${device.ip}") +
+                        ", so every paired phone sees it.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 8.dp),
+                )
+            }
+        },
+        confirmButton = {
+            Button(onClick = { onSave(text) }, enabled = canSave) { Text("Save") }
+        },
+        dismissButton = {
+            if (device.name != null) {
+                TextButton(onClick = { onSave("") }) { Text("Remove name") }
+            } else {
+                TextButton(onClick = onDismiss) { Text("Cancel") }
+            }
+        },
+    )
 }
 
 @Composable
@@ -131,13 +195,15 @@ private fun DeviceCard(device: SeenDevice, onClick: () -> Unit) {
             Spacer(Modifier.size(14.dp))
             Column(Modifier.weight(1f)) {
                 Text(
-                    device.clientLabel ?: "Unknown device",
+                    device.title ?: "Unknown device",
                     style = MaterialTheme.typography.titleMedium,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(
-                    listOfNotNull(device.ip, device.mac).joinToString(" · "),
+                    // With a name as the title, still show the software it runs.
+                    listOfNotNull(device.clientLabel.takeIf { device.name != null }, device.ip, device.mac)
+                        .joinToString(" · "),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -172,17 +238,28 @@ private fun AssignSheet(
     users: List<FltrUser>,
     onAssign: (DeviceBody, String) -> Unit,
     onAddPerson: (DeviceBody) -> Unit,
+    onRename: () -> Unit,
     onDismiss: () -> Unit,
 ) {
     var byMac by remember { mutableStateOf(device.mac != null) }
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
         Column(Modifier.padding(horizontal = 24.dp).padding(bottom = 24.dp)) {
             Text("Whose device is this?", style = MaterialTheme.typography.titleLarge)
-            Text(
-                device.clientLabel ?: device.ip,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    device.title ?: device.ip,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f),
+                )
+                TextButton(onClick = onRename) {
+                    Icon(Icons.Rounded.Edit, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.size(6.dp))
+                    Text(if (device.name == null) "Name it" else "Rename")
+                }
+            }
             if (device.mac != null) {
                 Spacer(Modifier.height(16.dp))
                 Text("Recognize it by", style = MaterialTheme.typography.titleSmall)

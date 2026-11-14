@@ -91,6 +91,7 @@ fun PairScreen(
             Text(
                 "Welcome to FLTR",
                 style = MaterialTheme.typography.headlineLarge,
+                color = MaterialTheme.colorScheme.onBackground,
                 textAlign = TextAlign.Center,
             )
             Spacer(Modifier.height(8.dp))

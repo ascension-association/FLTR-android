@@ -51,6 +51,8 @@ data class UserDevice(
     val type: String,
     val value: String,
     val source: String = SOURCE_SETTINGS,
+    /** The name given to this device in the app, if any. */
+    val name: String? = null,
 ) {
     /** Devices from the settings file can be changed by the app; rules.txt ones can't. */
     val editable: Boolean get() = source == SOURCE_SETTINGS
@@ -73,7 +75,12 @@ data class SeenDevice(
     @SerialName("last_seen") val lastSeen: String? = null,
     val user: String? = null,
     val rule: String? = null,
-)
+    /** The name given to this device in the app (by MAC, or else IP), if any. */
+    val name: String? = null,
+) {
+    /** What to call it: its given name, else the software FLTR recognized. */
+    val title: String? get() = name?.takeIf { it.isNotBlank() } ?: clientLabel
+}
 
 @Serializable
 data class BlockRule(val type: String = "", val value: String = "")
@@ -121,6 +128,10 @@ data class DeviceBody(val type: String, val value: String)
 
 @Serializable
 data class ExtraBody(val seconds: Long)
+
+/** PUT /names: a device's name; an empty [name] removes it. */
+@Serializable
+data class NameBody(val type: String, val value: String, val name: String)
 
 @Serializable
 data class ErrorBody(val error: String = "")

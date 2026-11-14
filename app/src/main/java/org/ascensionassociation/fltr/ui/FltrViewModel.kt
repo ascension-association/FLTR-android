@@ -319,6 +319,31 @@ class FltrViewModel(
     }
 
     /** Assigns a device seen on the network to an existing user. */
+    /**
+     * Names [device] by its MAC address when it has one, so the name stays
+     * when its IP address changes. A blank [name] removes the name, under
+     * either address.
+     */
+    fun renameDevice(device: SeenDevice, name: String) = launchCall { api ->
+        val trimmed = name.trim()
+        if (trimmed.isEmpty()) {
+            device.mac?.let { api.setName("mac", it, "") }
+            api.setName("ip", device.ip, "")
+        } else if (device.mac != null) {
+            api.setName("mac", device.mac, trimmed)
+        } else {
+            api.setName("ip", device.ip, trimmed)
+        }
+        reloadUsers(api)
+        refreshDevicesNow(api)
+        _messages.send(if (trimmed.isEmpty()) "Removed the device's name" else "Renamed to $trimmed")
+    }
+
+    private suspend fun refreshDevicesNow(api: FltrApi) {
+        val devices = api.devices()
+        _home.update { it.copy(devices = devices) }
+    }
+
     fun assignDevice(device: DeviceBody, userName: String) {
         val user = _home.value.user(userName)
         if (user != null) {

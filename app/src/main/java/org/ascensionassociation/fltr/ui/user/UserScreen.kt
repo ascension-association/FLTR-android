@@ -351,7 +351,7 @@ private fun DeviceRow(device: UserDevice, seen: List<SeenDevice>, onRemove: (Dev
         Spacer(Modifier.size(12.dp))
         Column(Modifier.weight(1f)) {
             Text(
-                match?.clientLabel ?: if (range) "A range of addresses" else displayDeviceValue(device.type, device.value),
+                device.name ?: match?.title ?: if (range) "A range of addresses" else displayDeviceValue(device.type, device.value),
                 style = MaterialTheme.typography.bodyLarge,
             )
             Text(

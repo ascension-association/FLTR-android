@@ -36,13 +36,6 @@
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="fltr" android:host="pair" />
             </intent-filter>
-            <!-- The same, from boxes running older FLTR releases. -->
-            <intent-filter>
-                <action android:name="android.intent.action.VIEW" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="gkfltr" android:host="pair" />
-            </intent-filter>
         </activity>
 
         <!-- Let the in-app scanner follow the phone's orientation. -->

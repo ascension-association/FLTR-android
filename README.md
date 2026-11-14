@@ -20,7 +20,7 @@ It uses every endpoint of the FLTR app API v1 (`docs/API.md` upstream).
 
 * Pair by scanning the QR code from `ramekin logs fltr` (in-app scanner, no Google Play Services
   needed), by pasting the `fltr://pair?…` link, or by scanning with the phone's camera app (the
-  app handles `fltr://pair`, and `gkfltr://pair` from older boxes). Links that come from outside the app ask for confirmation first.
+  app handles `fltr://pair`). Links that come from outside the app ask for confirmation first.
 * The app checks the pairing by calling `/api/v1/status` before saving it.
 * TLS trusts **only** the paired certificate's public key (SHA-256 SPKI pin) and skips host name
   checks, as the API requires. There is no trust-all fallback.

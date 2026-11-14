@@ -34,10 +34,10 @@ class MainActivity : ComponentActivity() {
         handlePairingLink(intent)
     }
 
-    /** fltr://pair?… (or gkfltr:// from older boxes) from the system camera or another app. */
+    /** fltr://pair?… from the system camera or another app. */
     private fun handlePairingLink(intent: Intent?) {
         val data = intent?.data ?: return
-        if (Pairing.SCHEMES.any { data.scheme.equals(it, ignoreCase = true) }) {
+        if (data.scheme.equals(Pairing.SCHEME, ignoreCase = true)) {
             vm.pairFromLink(data.toString())
         }
     }

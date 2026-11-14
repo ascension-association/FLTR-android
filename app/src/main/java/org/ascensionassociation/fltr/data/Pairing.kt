@@ -12,7 +12,6 @@ import kotlinx.serialization.Serializable
  *
  * [url] is the API base URL without a trailing slash, [token] the bearer
  * token, and [pin] the SHA-256 of the certificate's SubjectPublicKeyInfo.
- * Boxes running older FLTR releases print `gkfltr://`, which is accepted too.
  */
 @Serializable
 data class Pairing(val url: String, val token: String, val pin: String) {
@@ -27,7 +26,7 @@ data class Pairing(val url: String, val token: String, val pin: String) {
     companion object {
         private val TOKEN = Regex("[0-9a-fA-F]{64}")
         private const val PIN_PREFIX = "sha256/"
-        val SCHEMES = listOf("fltr", "gkfltr")
+        const val SCHEME = "fltr"
 
         /**
          * Parses a pairing link. Throws [InvalidPairingException] with a
@@ -37,7 +36,7 @@ data class Pairing(val url: String, val token: String, val pin: String) {
             val text = raw.trim()
             val q = text.indexOf('?')
             val head = if (q < 0) text else text.substring(0, q)
-            if (SCHEMES.none { head.equals("$it://pair", ignoreCase = true) } || q < 0) {
+            if (!head.equals("$SCHEME://pair", ignoreCase = true) || q < 0) {
                 throw InvalidPairingException("That isn't an FLTR pairing code.")
             }
             val params = text.substring(q + 1)

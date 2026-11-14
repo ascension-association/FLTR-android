@@ -41,11 +41,6 @@ class PairingTest {
     }
 
     @Test
-    fun acceptsTheSchemeOfOlderBoxes() {
-        assertEquals(token, Pairing.parse(fromFltr.replaceFirst("fltr://", "gkfltr://")).token)
-    }
-
-    @Test
     fun rejectsPlainHttp() {
         assertThrows(InvalidPairingException::class.java) {
             Pairing.parse(fromFltr.replace("https%3A", "http%3A"))

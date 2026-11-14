@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Sampled from the official astronaut artwork. -->
+    <color name="sky_soft">#FFD6EFFC</color>
+    <color name="canvas">#FFFBF8FD</color>
+    <color name="canvas_night">#FF170B1F</color>
+    <color name="ic_launcher_background">#FFD6EFFC</color>
+</resources>

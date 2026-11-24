@@ -49,7 +49,7 @@ class BoxFinder(
         .build(),
 ) {
 
-    /** Boxes on [subnet], trying the gateway (where FLTR often is) before the rest. */
+    /** Boxes on [subnet], trying the gateway address before the rest of the subnet. */
     suspend fun find(subnet: Subnet): List<FoundBox> {
         val (first, rest) = candidates(subnet)
         val atGateway = probeAll(first)

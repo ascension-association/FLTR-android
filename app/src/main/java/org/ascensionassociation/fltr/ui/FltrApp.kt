@@ -7,9 +7,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Devices
 import androidx.compose.material.icons.rounded.FamilyRestroom
+import androidx.compose.material.icons.rounded.FilterAlt
 import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.PersonAdd
-import androidx.compose.material.icons.rounded.Router
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
@@ -61,7 +61,7 @@ private enum class Tab(val route: String, val label: String, val title: String, 
     Family("family", "Family", "Family", Icons.Rounded.FamilyRestroom),
     Devices("devices", "Devices", "Devices", Icons.Rounded.Devices),
     Activity("activity", "Activity", "Activity", Icons.Rounded.History),
-    Box("box", "FLTR", "FLTR box", Icons.Rounded.Router),
+    Box("box", "FLTR", "FLTR box", Icons.Rounded.FilterAlt),
 }
 
 @Composable
